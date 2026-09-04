@@ -1,4 +1,4 @@
-"""Guardrails package — safety checks and semantic caching for RAG pipeline."""
+"""Guardrails re-export module for agents package."""
 
 from guardrails.safety import SafetyGuard
 from guardrails.semantic_cache import SemanticCache

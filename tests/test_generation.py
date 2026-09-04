@@ -161,6 +161,7 @@ class TestGenerator:
 
     def test_causal_lm_reasoning_and_stop_token_extraction(self):
         from unittest.mock import MagicMock
+
         from generation.llm import Generator
 
         gen = Generator(model_name="Qwen/Qwen3-4B-Instruct-2507")
@@ -182,4 +183,28 @@ class TestGenerator:
         assert res.answer == "The answer is 42."
         assert res.metadata.get("reasoning") == "Thinking about the context..."
         assert res.model_name == "Qwen/Qwen3-4B-Instruct-2507"
+
+    def test_groq_generation(self):
+        from unittest.mock import MagicMock
+
+        from generation.llm import Generator
+
+        gen = Generator(model_name="llama-3.3-70b-versatile", provider="groq", api_key="gsk_test")
+        assert gen.is_groq is True
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Groq says hello!"
+        mock_response.choices = [mock_choice]
+        mock_response.usage.prompt_tokens = 15
+        mock_response.usage.completion_tokens = 5
+        mock_client.chat.completions.create.return_value = mock_response
+
+        gen._groq_client = mock_client
+        res = gen.generate("Hello?")
+        assert res.answer == "Groq says hello!"
+        assert res.input_tokens == 15
+        assert res.output_tokens == 5
+        assert "groq/llama-3.3-70b-versatile" in res.model_name
 

@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -46,10 +47,14 @@ from generation.citation import CitationExtractor
 from generation.context_builder import ContextBuilder
 from generation.llm import Generator
 from generation.prompts import PromptManager
+from guardrails.semantic_cache import SemanticCache
 from ingestion.embedder import Embedder
 from ingestion.indexer import IndexBundle
 from ingestion.pipeline import IngestionPipeline
 from retrieval.pipeline import RetrievalPipeline
+
+# Load environment variables from .env if present
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +67,7 @@ _generator: Generator | None = None
 _prompt_manager: PromptManager | None = None
 _embedder: Embedder | None = None
 _orchestrator: PipelineOrchestrator | None = None
+_semantic_cache: SemanticCache = SemanticCache(similarity_threshold=0.95)
 _query_metrics: list[dict] = []
 
 
@@ -78,9 +84,12 @@ def _load_config() -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
-    global _config, _embedder, _generator, _prompt_manager, _orchestrator
+    global _config, _embedder, _generator, _prompt_manager, _orchestrator, _semantic_cache
 
     _config = _load_config()
+    cache_cfg = _config.get("semantic_cache", {})
+    if "similarity_threshold" in cache_cfg:
+        _semantic_cache.threshold = float(cache_cfg["similarity_threshold"])
     gen_cfg = _config.get("generation", {})
     retrieval_cfg = _config.get("retrieval", {})
 
@@ -93,10 +102,12 @@ async def lifespan(app: FastAPI):
 
     # Pre-initialize the generator and trigger model load
     _generator = Generator(
-        model_name=gen_cfg.get("model", "Qwen/Qwen3-4B-Instruct-2507"),
+        model_name=gen_cfg.get("model", "llama-3.3-70b-versatile" if gen_cfg.get("provider") == "groq" else "Qwen/Qwen3-4B-Instruct-2507"),
         max_new_tokens=gen_cfg.get("max_new_tokens", 500),
         max_input_tokens=gen_cfg.get("max_input_tokens", 2048),
         temperature=gen_cfg.get("temperature", 0.1),
+        provider=gen_cfg.get("provider"),
+        api_key=gen_cfg.get("api_key"),
     )
     # Eager load the model so first-request latency doesn't block
     try:
@@ -200,6 +211,7 @@ async def ingest_documents(files: list[UploadFile] = File(...)):
         if _orchestrator:
             _index_bundle, audit = _orchestrator.orchestrate_ingestion(pdf_paths)
             _retrieval_pipeline = _orchestrator.retrieval_pipeline
+            _semantic_cache.clear()
             return IngestResponse(
                 status="success",
                 documents_processed=audit.documents_count,
@@ -213,6 +225,7 @@ async def ingest_documents(files: list[UploadFile] = File(...)):
             pipeline = IngestionPipeline(_config)
             _index_bundle = pipeline.ingest(pdf_paths, save_dir="indices/")
             _retrieval_pipeline = RetrievalPipeline(_index_bundle, _config, _embedder)
+            _semantic_cache.clear()
 
     return IngestResponse(
         status="success",
@@ -236,6 +249,27 @@ def query_documents(request: QueryRequest):
             metadata={"error": "no_index"},
         )
 
+    total_start = time.time()
+
+    # ── Semantic Cache Check ───────────────────────────────────────
+    if _embedder is not None:
+        cached_result = _semantic_cache.check(request.question, embedder=_embedder)
+        if cached_result is not None:
+            cached_timings = TimingInfo(
+                retrieval_ms=0.0,
+                reranking_ms=0.0,
+                generation_ms=0.0,
+                citation_ms=0.0,
+                total_ms=round((time.time() - total_start) * 1000, 1),
+            )
+            return QueryResponse(
+                answer=cached_result["answer"],
+                sources=[SourceInfo(**s) for s in cached_result.get("sources", [])],
+                citations=[CitationInfo(**c) for c in cached_result.get("citations", [])],
+                timings=cached_timings,
+                metadata=cached_result.get("metadata", {}),
+            )
+
     # Agentic Orchestrated Flow
     if request.use_orchestrator and _orchestrator:
         state = _orchestrator.orchestrate_query(request.question, top_k=request.top_k)
@@ -257,7 +291,7 @@ def query_documents(request: QueryRequest):
             "citation_score": state.citation_accuracy,
         })
 
-        return QueryResponse(
+        response = QueryResponse(
             answer=state.final_answer,
             sources=[
                 SourceInfo(document=s["document"], page=s["page"], score=s["score"])
@@ -285,8 +319,13 @@ def query_documents(request: QueryRequest):
             },
         )
 
+        if _embedder is not None and not state.metadata.get("error"):
+            q_emb = _embedder.embed_query(request.question)
+            _semantic_cache.store(request.question, q_emb, response.model_dump())
+
+        return response
+
     # Legacy Direct Pipeline Fallback
-    total_start = time.time()
     retrieval_result = _retrieval_pipeline.retrieve(request.question)
     context = ContextBuilder.build(retrieval_result.chunks)
     sources = ContextBuilder.get_source_list(retrieval_result.chunks)
@@ -322,7 +361,7 @@ def query_documents(request: QueryRequest):
         "citation_score": CitationExtractor.citation_score(validated),
     })
 
-    return QueryResponse(
+    response = QueryResponse(
         answer=gen_result.answer,
         sources=[
             SourceInfo(document=s["document"], page=s["page"], score=s["score"])
@@ -347,6 +386,12 @@ def query_documents(request: QueryRequest):
         },
     )
 
+    if _embedder is not None:
+        q_emb = _embedder.embed_query(request.question)
+        _semantic_cache.store(request.question, q_emb, response.model_dump())
+
+    return response
+
 
 # ── Explicit Orchestration Endpoints ───────────────────────────
 
@@ -362,6 +407,58 @@ def orchestrate_query(request: QueryRequest):
             metadata={"error": "no_index"},
         )
 
+    total_start = time.time()
+
+    # ── Semantic Cache Check ───────────────────────────────────────
+    if _embedder is not None:
+        cached_result = _semantic_cache.check(request.question, embedder=_embedder)
+        if cached_result is not None:
+            cached_timings = TimingInfo(
+                retrieval_ms=0.0,
+                reranking_ms=0.0,
+                generation_ms=0.0,
+                citation_ms=0.0,
+                total_ms=round((time.time() - total_start) * 1000, 1),
+            )
+            validation_dict = cached_result.get("validation")
+            if validation_dict:
+                val_report = AgentValidationReport(**validation_dict)
+            else:
+                val_report = AgentValidationReport(
+                    retrieval_valid=True,
+                    retrieval_score=1.0,
+                    faithfulness_score=1.0,
+                    citation_accuracy=1.0,
+                    self_corrected=False,
+                    validation_reasons=["Served directly from semantic cache"],
+                )
+
+            thoughts_list = [
+                AgentThoughtInfo(**t) for t in cached_result.get("agent_thoughts", [])
+            ]
+            if not thoughts_list:
+                thoughts_list = [
+                    AgentThoughtInfo(
+                        agent="SemanticCache",
+                        step="cache_hit",
+                        thought="Retrieved cached response bypassing full retrieval and generation pipeline.",
+                        status="ok",
+                        latency_ms=cached_timings.total_ms,
+                    )
+                ]
+
+            return OrchestratedQueryResponse(
+                answer=cached_result["answer"],
+                intent=cached_result.get("intent", "direct"),
+                sub_queries=cached_result.get("sub_queries", []),
+                sources=[SourceInfo(**s) for s in cached_result.get("sources", [])],
+                citations=[CitationInfo(**c) for c in cached_result.get("citations", [])],
+                agent_thoughts=thoughts_list,
+                validation=val_report,
+                timings=cached_timings,
+                metadata=cached_result.get("metadata", {}),
+            )
+
     state = _orchestrator.orchestrate_query(request.question, top_k=request.top_k)
     timings = TimingInfo(
         retrieval_ms=round(state.timings.get("retrieval_agent_ms", 0), 1),
@@ -373,7 +470,7 @@ def orchestrate_query(request: QueryRequest):
         total_ms=round(state.timings.get("total_ms", 0), 1),
     )
 
-    return OrchestratedQueryResponse(
+    response = OrchestratedQueryResponse(
         answer=state.final_answer,
         intent=state.intent,
         sub_queries=state.sub_queries,
@@ -413,6 +510,12 @@ def orchestrate_query(request: QueryRequest):
         metadata=state.metadata,
     )
 
+    if _embedder is not None and not state.metadata.get("error"):
+        q_emb = _embedder.embed_query(request.question)
+        _semantic_cache.store(request.question, q_emb, response.model_dump())
+
+    return response
+
 
 @app.post("/orchestrate/ingest", response_model=OrchestratedIngestResponse)
 async def orchestrate_ingest(files: list[UploadFile] = File(...)):
@@ -451,6 +554,7 @@ async def orchestrate_ingest(files: list[UploadFile] = File(...)):
 
         _index_bundle, audit = _orchestrator.orchestrate_ingestion(pdf_paths)
         _retrieval_pipeline = _orchestrator.retrieval_pipeline
+        _semantic_cache.clear()
 
     return OrchestratedIngestResponse(
         status="success",

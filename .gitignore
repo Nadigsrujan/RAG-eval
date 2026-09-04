@@ -33,7 +33,7 @@ models/
 # ── Indices ──
 indices/
 
-agents/
+.agents/
 
 # ── Logs & Traces ──
 logs/
@@ -53,3 +53,8 @@ experiments/results/
 
 # ── Jupyter ──
 .ipynb_checkpoints/
+
+AGENTS.md
+
+SPEC-semantic-cache.md 
+

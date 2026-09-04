@@ -20,12 +20,13 @@ retrieval:
 reranker:
   enabled: true
   model: cross-encoder/ms-marco-MiniLM-L-6-v2
-  top_k_final: 5           # final contexts after reranking
+  top_k_final: 3          # final contexts after reranking
 
 generation:
-  model: Qwen/Qwen3-4B-Instruct-2507
+  provider: groq                           
+  model: openai/gpt-oss-120b       
   max_new_tokens: 500
-  max_input_tokens: 2048
+  max_input_tokens: 1024
   temperature: 0.1
   prompt_version: v1
 
