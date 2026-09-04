@@ -30,33 +30,33 @@
 
 ```mermaid
 flowchart TD
-    User([User]) --> WebUI[Web Frontend / Chat UI]
-    WebUI --> API[FastAPI Application]
+    User(["User"]) --> WebUI["Web Frontend / Chat UI"]
+    WebUI --> API["FastAPI Application"]
 
-    subgraph GuardrailsAndCaching ["Guardrails & Semantic Cache"]
-        CacheCheck{Semantic Cache Hit?\ncosine sim >= 0.95}
-        SemCache[(In-Memory Semantic Cache)]
-        SafetyGuard[Safety Guard: Injection, PII, Token Bounds]
+    subgraph GuardrailsAndCaching ["Guardrails and Semantic Cache"]
+        CacheCheck{"Semantic Cache Hit?<br/>(Cosine Sim >= 0.95)"}
+        SemCache[("In-Memory Semantic Cache")]
+        SafetyGuard["Safety Guard<br/>(Injection, PII, Token Bounds)"]
     end
 
     API --> CacheCheck
-    CacheCheck -- "Hit (< 5ms)" --> FastResponse[Cached Answer + Provenance]
+    CacheCheck -->|Cache Hit: sub-5ms| FastResponse["Cached Answer + Provenance"]
     FastResponse --> API
-    CacheCheck -- "Miss" --> SafetyGuard
-    SafetyGuard --> Orchestrator
+    CacheCheck -->|Cache Miss| SafetyGuard
+    SafetyGuard --> RouterAgent
 
     subgraph MultiAgentOrchestrator ["Multi-Agent Orchestration Layer"]
-        RouterAgent[Query Router Agent\nIntent: direct | multi_hop | exploratory]
-        RetValidationAgent[Retrieval Validation Agent\nEvidence sufficiency & confidence check]
-        GenAgent[Generation Agent\nGroq LPU / HF Transformers]
-        ReflectAgent[Reflection & Critic Agent\nFaithfulness >= 0.70 & Citation Validation]
+        RouterAgent["Query Router Agent<br/>(direct / multi-hop / exploratory)"]
+        RetValidationAgent["Retrieval Validation Agent<br/>(Evidence and Confidence Check)"]
+        GenAgent["Generation Agent<br/>(Groq LPU / HF Transformers)"]
+        ReflectAgent["Reflection and Critic Agent<br/>(Faithfulness >= 0.70 & Citation Validation)"]
     end
 
-    subgraph HybridRetrieval ["Hybrid Retrieval & Reranking"]
-        BM25Idx[(BM25 Lexical Index)]
-        FAISSIdx[(Dense FAISS Vector Index)]
-        RRF[Reciprocal Rank Fusion - RRF]
-        CrossEnc[Cross-Encoder Reranker\nms-marco-MiniLM-L-6-v2]
+    subgraph HybridRetrieval ["Hybrid Retrieval and Reranking"]
+        BM25Idx[("BM25 Lexical Index")]
+        FAISSIdx[("Dense FAISS Vector Index")]
+        RRF["Reciprocal Rank Fusion (RRF)"]
+        CrossEnc["Cross-Encoder Reranker<br/>(ms-marco-MiniLM-L-6-v2)"]
     end
 
     RouterAgent --> RetValidationAgent
@@ -69,29 +69,32 @@ flowchart TD
 
     RetValidationAgent --> GenAgent
     GenAgent --> ReflectAgent
-    ReflectAgent -- "Self-Correction Loop\n(if citation/faithfulness invalid)" --> GenAgent
-    ReflectAgent --> FinalOutput[Grounded Answer + Validated Citations + Thoughts]
+    ReflectAgent -->|Self-Correction Feedback Loop| GenAgent
+    ReflectAgent --> FinalOutput["Grounded Answer + Validated Citations + Thoughts"]
 
     FinalOutput --> SemCache
     FinalOutput --> API
 
     subgraph OfflineIngestion ["Document Ingestion Pipeline"]
-        PDFs([PDF Documents]) --> IngestionAgent[Ingestion Agent]
-        IngestionAgent --> Parser[PDF Parser & Text Cleaning]
-        Parser --> Chunker[Semantic Chunker: 300 tokens, 50 overlap]
-        Chunker --> Embedder[Dense Embedder: all-MiniLM-L6-v2]
-        Embedder --> Indexer[Dual Index Builder]
+        PDFs(["PDF Documents"]) --> IngestionAgent["Ingestion Agent"]
+        IngestionAgent --> Parser["PDF Parser and Text Cleaning"]
+        Parser --> Chunker["Semantic Chunker (300 tokens, 50 overlap)"]
+        Chunker --> Embedder["Dense Embedder (all-MiniLM-L6-v2)"]
+        Embedder --> Indexer["Dual Index Builder"]
         Indexer --> BM25Idx
         Indexer --> FAISSIdx
         Indexer -.->|Invalidates Stale Cache| SemCache
     end
 
-    subgraph ObservabilityStack ["Observability"]
-        OTel[OpenTelemetry Tracing]
-        PromMetrics[Metrics Collector: Latency, p95, Citations]
-        StructuredLogs[Structured JSON Logs]
+    subgraph ObservabilityStack ["Observability Stack"]
+        OTel["OpenTelemetry Tracing"]
+        PromMetrics["Metrics Collector (Latency, p95, Citations)"]
+        StructuredLogs["Structured JSON Logs"]
     end
-    API -.-> ObservabilityStack
+
+    API -.-> OTel
+    API -.-> PromMetrics
+    API -.-> StructuredLogs
 ```
 
 ---
