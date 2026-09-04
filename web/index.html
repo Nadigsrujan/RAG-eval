@@ -1,0 +1,2029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Multimodal Document Intelligence — Research-grade RAG workspace with hybrid retrieval, cross-encoder reranking, and citation provenance verification.">
+    <title>DocIntel — Document Intelligence & Citation Verification</title>
+    
+    <!-- Typography: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ═══ Anti-Slop Design System: High-Rigor Provenance Canvas ═══ */
+        :root {
+            --canvas-bg: #070a11;
+            --canvas-subtle: #0d121f;
+            --surface-card: #111726;
+            --surface-elevated: #172033;
+            --surface-hover: #1c273e;
+            
+            --border-hairline: rgba(148, 163, 184, 0.12);
+            --border-medium: rgba(148, 163, 184, 0.22);
+            --border-active: #0284c7;
+            
+            --text-high: #f8fafc;
+            --text-mid: #94a3b8;
+            --text-dim: #64748b;
+            --text-faint: #475569;
+            
+            --accent-primary: #0284c7;
+            --accent-hover: #0369a1;
+            --accent-glow: rgba(2, 132, 199, 0.18);
+            
+            --signal-success: #10b981;
+            --signal-success-subtle: rgba(16, 185, 129, 0.12);
+            --signal-warning: #f59e0b;
+            --signal-warning-subtle: rgba(245, 158, 11, 0.12);
+            --signal-danger: #f43f5e;
+            --signal-danger-subtle: rgba(244, 63, 94, 0.12);
+            
+            --timing-retrieval: #38bdf8;
+            --timing-rerank: #a855f7;
+            --timing-gen: #f59e0b;
+            --timing-cite: #10b981;
+            
+            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            
+            --radius-xs: 4px;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            
+            --transition-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--canvas-bg);
+            color: var(--text-high);
+            font-family: var(--font-sans);
+            font-size: 14px;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Subtle technical grid overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .workspace-shell {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ═══ Header Bar: Disciplined & Provenance-Focused ═══ */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-hairline);
+            flex-shrink: 0;
+        }
+
+        .brand-block {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-symbol {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+        }
+
+        .brand-text h1 {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--text-high);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-badge {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 2px 6px;
+            border-radius: var(--radius-xs);
+            background: rgba(2, 132, 199, 0.12);
+            border: 1px solid rgba(2, 132, 199, 0.25);
+            color: #38bdf8;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-mid);
+            background: var(--surface-card);
+            border: 1px solid var(--border-hairline);
+            padding: 6px 12px;
+            border-radius: var(--radius-xs);
+        }
+
+        .status-light {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            transition: all 0.3s var(--transition-smooth);
+        }
+
+        .status-light.live {
+            background: var(--signal-success);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .header-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: var(--text-mid);
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: var(--radius-xs);
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .header-link:hover {
+            color: var(--text-high);
+            background: var(--surface-card);
+            border-color: var(--border-hairline);
+        }
+
+        /* ═══ Main Split Layout ═══ */
+        main {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+            padding: 20px 0;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ═══ Left Sidebar: Ingestion & Telemetry ═══ */
+        .control-column {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .panel-box {
+            background: var(--surface-card);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .panel-box:hover {
+            border-color: var(--border-medium);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-mid);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Drop Zone */
+        .drop-target {
+            border: 1px dashed var(--border-medium);
+            background: var(--canvas-subtle);
+            border-radius: var(--radius-sm);
+            padding: 24px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s var(--transition-smooth);
+            position: relative;
+        }
+
+        .drop-target:hover, .drop-target.is-dragover {
+            border-color: var(--accent-primary);
+            background: var(--surface-elevated);
+        }
+
+        .drop-icon-wrap {
+            width: 38px;
+            height: 38px;
+            margin: 0 auto 10px;
+            border-radius: var(--radius-xs);
+            background: var(--surface-card);
+            border: 1px solid var(--border-hairline);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-mid);
+        }
+
+        .drop-target:hover .drop-icon-wrap {
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .drop-lead {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-high);
+            margin-bottom: 2px;
+        }
+
+        .drop-lead span {
+            color: var(--accent-primary);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .drop-sub {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+
+        /* Pending Uploads */
+        .queue-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
+        .queue-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: var(--canvas-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-xs);
+            font-size: 12px;
+        }
+
+        .queue-item-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text-high);
+            font-weight: 500;
+        }
+
+        .queue-item-meta {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-dim);
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+
+        /* Action Buttons */
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 9px 16px;
+            border-radius: var(--radius-xs);
+            font-family: var(--font-sans);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s var(--transition-smooth);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: #ffffff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border-hairline);
+            color: var(--text-mid);
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--border-medium);
+            color: var(--text-high);
+            background: var(--surface-elevated);
+        }
+
+        /* Indexed Catalog */
+        .catalog-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .catalog-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: var(--canvas-subtle);
+            border-left: 2px solid var(--signal-success);
+            border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+            font-size: 12px;
+        }
+
+        .catalog-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text-high);
+        }
+
+        /* Metrics Telemetry Grid */
+        .metrics-quad {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .metric-cell {
+            background: var(--canvas-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-xs);
+            padding: 10px;
+        }
+
+        .metric-cell-label {
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            margin-bottom: 2px;
+        }
+
+        .metric-cell-val {
+            font-family: var(--font-mono);
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-high);
+        }
+
+        .metric-cell-val.highlight {
+            color: var(--signal-success);
+        }
+
+        /* Pipeline Specs Summary */
+        .pipeline-spec {
+            font-size: 11px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .pipeline-spec-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .pipeline-spec-row code {
+            font-family: var(--font-mono);
+            color: var(--text-mid);
+            background: var(--canvas-subtle);
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        /* ═══ Right Column: Inquiries & Citations Console ═══ */
+        .console-column {
+            background: var(--surface-card);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .console-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-hairline);
+            background: var(--canvas-subtle);
+        }
+
+        .console-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-mid);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .console-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tool-btn {
+            background: none;
+            border: 1px solid var(--border-hairline);
+            color: var(--text-dim);
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: var(--radius-xs);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            color: var(--text-high);
+            border-color: var(--border-medium);
+        }
+
+        /* Message Stream */
+        .stream-viewport {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Empty / Welcome State */
+        .workspace-welcome {
+            margin: auto;
+            max-width: 580px;
+            text-align: center;
+            padding: 32px 16px;
+        }
+
+        .welcome-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--canvas-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: 20px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--text-mid);
+            margin-bottom: 16px;
+        }
+
+        .welcome-heading {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-high);
+            margin-bottom: 8px;
+        }
+
+        .welcome-sub {
+            font-size: 13px;
+            color: var(--text-mid);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        /* Quick Starters Grid */
+        .starter-queries {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: left;
+        }
+
+        .starter-card {
+            padding: 10px 14px;
+            background: var(--canvas-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-xs);
+            font-size: 12px;
+            color: var(--text-mid);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s var(--transition-smooth);
+        }
+
+        .starter-card:hover {
+            background: var(--surface-elevated);
+            border-color: var(--accent-primary);
+            color: var(--text-high);
+            transform: translateX(2px);
+        }
+
+        .starter-arrow {
+            color: var(--text-dim);
+            font-size: 10px;
+        }
+
+        /* Messages */
+        .turn-entry {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            animation: fadeIn 0.25s var(--transition-smooth);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .turn-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .turn-header.user {
+            color: #38bdf8;
+        }
+
+        .turn-header.assistant {
+            color: var(--accent-primary);
+        }
+
+        .turn-bubble {
+            background: var(--canvas-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            line-height: 1.7;
+            font-size: 13.5px;
+            max-width: 900px;
+        }
+
+        .turn-entry.user .turn-bubble {
+            background: rgba(2, 132, 199, 0.06);
+            border-color: rgba(2, 132, 199, 0.2);
+            color: var(--text-high);
+            font-weight: 500;
+        }
+
+        .turn-entry.assistant .turn-bubble {
+            background: var(--surface-elevated);
+            border-color: var(--border-hairline);
+        }
+
+        /* Citation Provenance Pills */
+        .provenance-deck {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-hairline);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .provenance-deck-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-dim);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .citation-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .cite-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px;
+            border-radius: var(--radius-xs);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            background: var(--canvas-subtle);
+            border: 1px solid var(--border-hairline);
+            color: var(--text-mid);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cite-tag:hover {
+            background: var(--surface-hover);
+            border-color: var(--border-medium);
+            color: var(--text-high);
+        }
+
+        .cite-tag.verified {
+            border-color: rgba(16, 185, 129, 0.3);
+            background: var(--signal-success-subtle);
+            color: #34d399;
+        }
+
+        .cite-tag.unverified {
+            border-color: rgba(244, 63, 94, 0.3);
+            background: var(--signal-danger-subtle);
+            color: #fb7185;
+        }
+
+        /* Collapsible Sources Drawer */
+        .sources-accordion {
+            margin-top: 8px;
+        }
+
+        .sources-trigger {
+            font-size: 11px;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            user-select: none;
+        }
+
+        .sources-trigger:hover {
+            color: var(--text-mid);
+        }
+
+        .sources-drawer {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .sources-drawer.open {
+            display: flex;
+        }
+
+        .source-card {
+            background: var(--canvas-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-xs);
+            padding: 8px 12px;
+            font-size: 12px;
+            color: var(--text-mid);
+        }
+
+        .source-card-head {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 10.5px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        /* Observability Execution Stepper */
+        .pipeline-trace {
+            margin-top: 14px;
+            padding: 10px 14px;
+            background: var(--canvas-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-xs);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .trace-bar {
+            display: flex;
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .trace-seg {
+            height: 100%;
+            transition: width 0.4s var(--transition-smooth);
+        }
+
+        .trace-seg.retrieval { background: var(--timing-retrieval); }
+        .trace-seg.rerank { background: var(--timing-rerank); }
+        .trace-seg.gen { background: var(--timing-gen); }
+        .trace-seg.cite { background: var(--timing-cite); }
+
+        .trace-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        .trace-node {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .trace-node-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        /* Loading / Processing Indicator */
+        .loading-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            font-size: 13px;
+            color: var(--text-mid);
+        }
+
+        .pulse-loader {
+            display: flex;
+            gap: 4px;
+        }
+
+        .pulse-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            animation: pulseWave 1s infinite ease-in-out;
+        }
+
+        .pulse-dot:nth-child(2) { animation-delay: 0.15s; }
+        .pulse-dot:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes pulseWave {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* ═══ Agentic Orchestration Deck ═══ */
+        .agent-orchestration-deck {
+            margin-top: 10px;
+            background: rgba(15, 23, 42, 0.45);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: var(--radius-xs);
+            overflow: hidden;
+        }
+
+        .agent-deck-header {
+            padding: 8px 12px;
+            background: rgba(99, 102, 241, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            font-size: 11px;
+            transition: background 0.15s;
+        }
+
+        .agent-deck-header:hover {
+            background: rgba(99, 102, 241, 0.15);
+        }
+
+        .agent-deck-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #a5b4fc;
+        }
+
+        .agent-deck-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-dim);
+            font-size: 10.5px;
+            font-family: var(--font-mono);
+        }
+
+        .agent-deck-body {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px 12px;
+            background: rgba(15, 23, 42, 0.2);
+            border-top: 1px solid rgba(99, 102, 241, 0.15);
+        }
+
+        .agent-deck-body.open {
+            display: flex;
+        }
+
+        .agent-step-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 6px 8px;
+            background: rgba(30, 41, 59, 0.35);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-xs);
+        }
+
+        .agent-step-icon {
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        .agent-step-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .agent-step-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10.5px;
+            font-family: var(--font-mono);
+            color: var(--text-mid);
+        }
+
+        .agent-step-thought {
+            font-size: 11.5px;
+            color: var(--text-high);
+            line-height: 1.4;
+        }
+
+        .agent-step-status {
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .agent-step-status.agent-status-ok {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .agent-step-status.agent-status-warn {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+
+        .agent-step-status.agent-status-err {
+            background: rgba(244, 63, 94, 0.2);
+            color: #f87171;
+        }
+
+        .agent-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 9.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .agent-pill.info {
+            background: rgba(99, 102, 241, 0.25);
+            color: #c7d2fe;
+        }
+
+        .agent-pill.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+        }
+
+        .agent-pill.warn {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fde68a;
+        }
+
+        /* Console Footer / Input Deck */
+        .console-input-dock {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-hairline);
+            background: var(--canvas-subtle);
+        }
+
+        .input-bar {
+            display: flex;
+            align-items: center;
+            background: var(--surface-card);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px 6px 14px;
+            transition: all 0.2s var(--transition-smooth);
+        }
+
+        .input-bar:focus-within {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        #inquiry-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-high);
+            font-family: var(--font-sans);
+            font-size: 13.5px;
+            padding: 6px 0;
+        }
+
+        #inquiry-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .btn-send {
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: var(--radius-xs);
+            background: var(--accent-primary);
+            color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .btn-send:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .btn-send:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .input-hints {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+
+        /* ═══ Custom Scrollbars ═══ */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.15);
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.3);
+        }
+
+        /* ═══ Responsive Breakpoints ═══ */
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 300px 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .workspace-shell {
+                height: auto;
+                padding: 0 16px;
+            }
+            main {
+                grid-template-columns: 1fr;
+                overflow: visible;
+            }
+            .control-column {
+                overflow: visible;
+            }
+            .console-column {
+                height: 700px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="workspace-shell">
+        <!-- ═══ System Header ═══ -->
+        <header>
+            <div class="brand-block">
+                <div class="brand-symbol">
+                    <!-- Crisp Vector Document & Search Glyph -->
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>DocIntel <span class="brand-badge">PROVENANCE RAG</span></h1>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <div class="status-pill" title="Backend Pipeline Index State">
+                    <span class="status-light" id="sys-status-dot"></span>
+                    <span id="sys-status-label">Initializing...</span>
+                </div>
+                <a href="/docs" target="_blank" class="header-link" title="Open FastAPI Interactive API Documentation">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    API Docs
+                </a>
+            </div>
+        </header>
+
+        <!-- ═══ Workspace Grid ═══ -->
+        <main>
+            <!-- ─── Left Control Rail: Ingestion & Telemetry ─── -->
+            <aside class="control-column">
+                <!-- Document Ingestion Box -->
+                <div class="panel-box">
+                    <div class="panel-header">
+                        <span class="panel-title">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            Ingestion Pipeline
+                        </span>
+                    </div>
+
+                    <div class="drop-target" id="drop-zone">
+                        <div class="drop-icon-wrap">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="12" y1="18" x2="12" y2="12"></line>
+                                <line x1="9" y1="15" x2="15" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="drop-lead">Drag & drop PDFs or <span>browse</span></div>
+                        <div class="drop-sub">Parses text, chunks & builds hybrid index</div>
+                        <input type="file" id="raw-file-input" accept=".pdf" multiple style="display: none;">
+                    </div>
+
+                    <div class="queue-list" id="queue-container"></div>
+
+                    <button class="btn-action btn-primary" id="btn-ingest" style="display:none;" onclick="triggerIngest()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Build Index
+                    </button>
+                </div>
+
+                <!-- Indexed Knowledge Corpus -->
+                <div class="panel-box" id="panel-corpus" style="display:none;">
+                    <div class="panel-header">
+                        <span class="panel-title">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                            Indexed Corpus
+                        </span>
+                        <span id="corpus-count" class="brand-badge">0 documents</span>
+                    </div>
+                    <div class="catalog-list" id="catalog-container"></div>
+                </div>
+
+                <!-- Telemetry & Performance Panel -->
+                <div class="panel-box" id="panel-metrics">
+                    <div class="panel-header">
+                        <span class="panel-title">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                            </svg>
+                            Observability Telemetry
+                        </span>
+                        <button class="tool-btn" onclick="fetchMetrics()" title="Refresh telemetry metrics">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="metrics-quad">
+                        <div class="metric-cell">
+                            <div class="metric-cell-label">Queries</div>
+                            <div class="metric-cell-val" id="val-queries">0</div>
+                        </div>
+                        <div class="metric-cell">
+                            <div class="metric-cell-label">Avg Latency</div>
+                            <div class="metric-cell-val" id="val-latency">—</div>
+                        </div>
+                        <div class="metric-cell">
+                            <div class="metric-cell-label">P95 Latency</div>
+                            <div class="metric-cell-val" id="val-p95">—</div>
+                        </div>
+                        <div class="metric-cell">
+                            <div class="metric-cell-label">Citation Rate</div>
+                            <div class="metric-cell-val highlight" id="val-citation">—</div>
+                        </div>
+                    </div>
+
+                    <div class="pipeline-spec">
+                        <div class="pipeline-spec-row">
+                            <span>Retrieval:</span>
+                            <code>BM25 + Dense RRF</code>
+                        </div>
+                        <div class="pipeline-spec-row">
+                            <span>Reranker:</span>
+                            <code>ms-marco Cross-Encoder</code>
+                        </div>
+                        <div class="pipeline-spec-row">
+                            <span>Generator:</span>
+                            <code>Qwen3-4B-Instruct</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evaluation Report Panel -->
+                <div class="panel-box" id="panel-evaluation">
+                    <div class="panel-header">
+                        <span class="panel-title">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            Evaluation & SLA Audit
+                        </span>
+                        <div style="display:flex; gap:4px;">
+                            <button class="tool-btn" id="btn-run-audit" onclick="runPipelineAudit()" title="Run Multi-Agent Pipeline SLA Audit">
+                                🛡️ Audit
+                            </button>
+                            <button class="tool-btn" id="btn-run-eval" onclick="runEvaluation()" title="Run full RAG evaluation against test dataset">
+                                ▶ Eval
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="eval-placeholder" style="padding: 10px 12px; color: var(--text-dim); font-size: 11px; line-height: 1.6;">
+                        Click <strong>Run</strong> to execute the evaluation pipeline against the test dataset. Requires ingested documents.
+                    </div>
+
+                    <div id="eval-loading" style="display: none; padding: 14px 12px; text-align: center;">
+                        <div class="pulse-loader" style="justify-content: center; margin-bottom: 8px;">
+                            <span class="pulse-dot"></span>
+                            <span class="pulse-dot"></span>
+                            <span class="pulse-dot"></span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-dim);">Evaluating all queries... this may take a few minutes.</div>
+                    </div>
+
+                    <div id="eval-results" style="display: none;">
+                        <div style="padding: 4px 12px 6px;">
+                            <div style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 6px; margin-top: 8px;">Retrieval</div>
+                            <div class="metrics-quad">
+                                <div class="metric-cell">
+                                    <div class="metric-cell-label">Recall@5</div>
+                                    <div class="metric-cell-val" id="eval-recall5">—</div>
+                                </div>
+                                <div class="metric-cell">
+                                    <div class="metric-cell-label">MRR</div>
+                                    <div class="metric-cell-val" id="eval-mrr">—</div>
+                                </div>
+                                <div class="metric-cell">
+                                    <div class="metric-cell-label">NDCG@5</div>
+                                    <div class="metric-cell-val" id="eval-ndcg5">—</div>
+                                </div>
+                                <div class="metric-cell">
+                                    <div class="metric-cell-label">Precision@5</div>
+                                    <div class="metric-cell-val" id="eval-prec5">—</div>
+                                </div>
+                            </div>
+
+                            <div style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 6px; margin-top: 10px;">Generation</div>
+                            <div class="metrics-quad">
+                                <div class="metric-cell">
+                                    <div class="metric-cell-label">Exact Match</div>
+                                    <div class="metric-cell-val" id="eval-em">—</div>
+                                </div>
+                                <div class="metric-cell">
+                                    <div class="metric-cell-label">Token F1</div>
+                                    <div class="metric-cell-val" id="eval-f1">—</div>
+                                </div>
+                                <div class="metric-cell">
+                                    <div class="metric-cell-label">Contains</div>
+                                    <div class="metric-cell-val" id="eval-contains">—</div>
+                                </div>
+                                <div class="metric-cell">
+                                    <div class="metric-cell-label">Avg Length</div>
+                                    <div class="metric-cell-val" id="eval-avglen">—</div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-hairline); font-size: 11px; color: var(--text-dim);">
+                                <span id="eval-summary"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- ─── Right Console: Inquiry & Provenance Stream ─── -->
+            <section class="console-column">
+                <div class="console-top">
+                    <div class="console-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        Document Inquiry Console
+                    </div>
+                    <div class="console-tools">
+                        <button class="tool-btn" onclick="clearStream()" title="Clear dialogue history">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stream Area -->
+                <div class="stream-viewport" id="dialogue-stream">
+                    <!-- Welcome State -->
+                    <div class="workspace-welcome" id="empty-state">
+                        <div class="welcome-badge">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                            High-Fidelity Document Provenance
+                        </div>
+                        <h2 class="welcome-heading">Multimodal Document Intelligence</h2>
+                        <p class="welcome-sub">
+                            Ingest PDF documents to query content with verifiable source citations, hybrid RRF retrieval, cross-encoder reranking, and full pipeline latency tracing.
+                        </p>
+
+                        <div class="starter-queries">
+                            <div class="starter-card" onclick="insertSample('What are the primary findings and conclusions of the document?')">
+                                <span>What are the primary findings and conclusions of the document?</span>
+                                <span class="starter-arrow">↵</span>
+                            </div>
+                            <div class="starter-card" onclick="insertSample('What methodology and evaluation metrics are reported?')">
+                                <span>What methodology and evaluation metrics are reported?</span>
+                                <span class="starter-arrow">↵</span>
+                            </div>
+                            <div class="starter-card" onclick="insertSample('Summarize key figures, tables, and numeric benchmarks.')">
+                                <span>Summarize key figures, tables, and numeric benchmarks.</span>
+                                <span class="starter-arrow">↵</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Dock -->
+                <div class="console-input-dock">
+                    <div class="input-bar">
+                        <input 
+                            type="text" 
+                            id="inquiry-input" 
+                            placeholder="Enter inquiry or hypothesis against indexed documents..."
+                            autocomplete="off"
+                            disabled
+                        >
+                        <button class="btn-send" id="btn-submit-inquiry" onclick="submitInquiry()" disabled title="Send inquiry (Enter)">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="input-hints">
+                        <span>Press <strong>Enter</strong> to submit · Hybrid Top-5 Reranked</span>
+                        <span id="token-counter-hint">Ready</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // ═══ Client Orchestration & State ═══
+        const API_BASE = (window.location.protocol === 'file:' || window.location.origin === 'null')
+            ? 'http://127.0.0.1:8000'
+            : window.location.origin;
+        let pendingFiles = [];
+        let indexedDocNames = new Set();
+
+        // ═══ Health & Pipeline Status Check ═══
+        async function inspectSystemHealth() {
+            const dot = document.getElementById('sys-status-dot');
+            const label = document.getElementById('sys-status-label');
+
+            try {
+                const res = await fetch(`${API_BASE}/health`);
+                const info = await res.json();
+
+                if (info.index_loaded && info.num_chunks > 0) {
+                    dot.className = 'status-light live';
+                    label.textContent = `${info.num_chunks} chunks indexed (${info.num_documents || 1} docs)`;
+                    activateConsole();
+                    showIndexedPanel();
+                } else {
+                    dot.className = 'status-light';
+                    label.textContent = 'Awaiting documents';
+                }
+            } catch (e) {
+                dot.className = 'status-light';
+                label.textContent = 'API disconnected';
+            }
+        }
+
+        // ═══ Drag & Drop File Handling ═══
+        const dropZone = document.getElementById('drop-zone');
+        const rawFileInput = document.getElementById('raw-file-input');
+
+        dropZone.addEventListener('click', () => rawFileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('is-dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('is-dragover');
+            handleIncomingFiles(e.dataTransfer.files);
+        });
+
+        rawFileInput.addEventListener('change', (e) => handleIncomingFiles(e.target.files));
+
+        function handleIncomingFiles(files) {
+            const pdfs = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+            if (!pdfs.length) return;
+            pendingFiles = [...pendingFiles, ...pdfs];
+            renderPendingQueue();
+        }
+
+        function renderPendingQueue() {
+            const container = document.getElementById('queue-container');
+            const ingestBtn = document.getElementById('btn-ingest');
+
+            if (!pendingFiles.length) {
+                container.innerHTML = '';
+                ingestBtn.style.display = 'none';
+                return;
+            }
+
+            container.innerHTML = pendingFiles.map((file, idx) => `
+                <div class="queue-item">
+                    <div class="queue-item-name" title="${escapeHtml(file.name)}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        ${escapeHtml(file.name)}
+                    </div>
+                    <span class="queue-item-meta">${(file.size / 1024).toFixed(0)} KB</span>
+                </div>
+            `).join('');
+
+            ingestBtn.style.display = 'inline-flex';
+        }
+
+        // ═══ Ingest Processing ═══
+        async function triggerIngest() {
+            const btn = document.getElementById('btn-ingest');
+            btn.disabled = true;
+            btn.innerHTML = `
+                <span class="pulse-loader"><span class="pulse-dot"></span><span class="pulse-dot"></span><span class="pulse-dot"></span></span>
+                Indexing Passages...
+            `;
+
+            const payload = new FormData();
+            pendingFiles.forEach(f => payload.append('files', f));
+
+            try {
+                const res = await fetch(`${API_BASE}/ingest`, { method: 'POST', body: payload });
+                const result = await res.json();
+
+                if (result.status === 'success') {
+                    pendingFiles.forEach(f => indexedDocNames.add(f.name));
+                    pendingFiles = [];
+                    renderPendingQueue();
+                    renderCatalog();
+                    activateConsole();
+                    inspectSystemHealth();
+                    fetchMetrics();
+                } else {
+                    alert('Ingestion error: ' + (result.detail || 'Failed to process document'));
+                }
+            } catch (err) {
+                console.error('Ingest error:', err);
+                alert('Network error while processing documents');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    Build Index
+                `;
+            }
+        }
+
+        function showIndexedPanel() {
+            document.getElementById('panel-corpus').style.display = 'flex';
+        }
+
+        function renderCatalog() {
+            showIndexedPanel();
+            const list = document.getElementById('catalog-container');
+            const countLabel = document.getElementById('corpus-count');
+            
+            const docs = Array.from(indexedDocNames);
+            countLabel.textContent = `${docs.length} ${docs.length === 1 ? 'doc' : 'docs'}`;
+
+            list.innerHTML = docs.map(doc => `
+                <div class="catalog-item">
+                    <div class="catalog-name" title="${escapeHtml(doc)}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        ${escapeHtml(doc)}
+                    </div>
+                    <span class="brand-badge">Active</span>
+                </div>
+            `).join('');
+        }
+
+        // ═══ Console / Inquiry Interaction ═══
+        function activateConsole() {
+            document.getElementById('inquiry-input').disabled = false;
+            document.getElementById('btn-submit-inquiry').disabled = false;
+            document.getElementById('inquiry-input').focus();
+        }
+
+        function insertSample(text) {
+            const input = document.getElementById('inquiry-input');
+            input.value = text;
+            if (!input.disabled) {
+                submitInquiry();
+            }
+        }
+
+        document.getElementById('inquiry-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitInquiry();
+            }
+        });
+
+        async function submitInquiry() {
+            const input = document.getElementById('inquiry-input');
+            const question = input.value.trim();
+            if (!question) return;
+
+            // Hide welcome screen
+            const welcome = document.getElementById('empty-state');
+            if (welcome) welcome.style.display = 'none';
+
+            // Post user query
+            appendEntry('user', question);
+            input.value = '';
+
+            // Show processing placeholder
+            const loaderId = appendLoadingIndicator();
+
+            try {
+                const res = await fetch(`${API_BASE}/orchestrate/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question, top_k: 5, use_orchestrator: true })
+                });
+
+                const data = await res.json();
+                removeLoadingIndicator(loaderId);
+
+                if (res.ok) {
+                    appendAssistantEntry(data);
+                    fetchMetrics();
+                } else {
+                    appendEntry('assistant', data.detail || 'An error occurred while synthesizing the answer.');
+                }
+            } catch (err) {
+                removeLoadingIndicator(loaderId);
+                appendEntry('assistant', 'Connection error: Unable to contact the query endpoint.');
+            }
+        }
+
+        function appendEntry(role, text) {
+            const stream = document.getElementById('dialogue-stream');
+            const entry = document.createElement('div');
+            entry.className = `turn-entry ${role}`;
+
+            const roleHeader = role === 'user' ? `
+                <div class="turn-header user">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Researcher Query
+                </div>
+            ` : `
+                <div class="turn-header assistant">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Synthesized Intelligence
+                </div>
+            `;
+
+            entry.innerHTML = `
+                ${roleHeader}
+                <div class="turn-bubble">${formatAnswerText(text)}</div>
+            `;
+
+            stream.appendChild(entry);
+            stream.scrollTop = stream.scrollHeight;
+        }
+
+        function appendAssistantEntry(data) {
+            const stream = document.getElementById('dialogue-stream');
+            const entry = document.createElement('div');
+            entry.className = 'turn-entry assistant';
+
+            // Citations provenance pills
+            let provenanceHtml = '';
+            if (data.citations && data.citations.length) {
+                const chips = data.citations.map(c => `
+                    <span class="cite-tag ${c.is_valid ? 'verified' : 'unverified'}" title="${c.is_valid ? 'Passage verified by validator' : 'Citation unverified'}">
+                        ${c.is_valid ? '✓' : '⚠'} ${escapeHtml(c.document)} : p.${c.page}
+                    </span>
+                `).join('');
+
+                provenanceHtml = `
+                    <div class="provenance-deck">
+                        <div class="provenance-deck-title">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                            Citation Provenance
+                        </div>
+                        <div class="citation-chips">${chips}</div>
+                    </div>
+                `;
+            }
+
+            // Agentic Orchestration Stepper & Verification
+            let agenticHtml = '';
+            if (data.agent_thoughts && data.agent_thoughts.length) {
+                const stepsHtml = data.agent_thoughts.map(t => {
+                    const icon = t.agent.includes('Router') ? '🧠' :
+                                 t.agent.includes('Retrieval') ? '🔍' :
+                                 t.agent.includes('Generation') ? '✍️' :
+                                 t.agent.includes('Reflection') ? '🛡️' : '⚡';
+                    const badgeClass = t.status === 'error' ? 'agent-status-err' :
+                                       t.status === 'warning' ? 'agent-status-warn' : 'agent-status-ok';
+                    return `
+                        <div class="agent-step-row">
+                            <div class="agent-step-icon">${icon}</div>
+                            <div class="agent-step-content">
+                                <div class="agent-step-head">
+                                    <span style="font-weight:600;">${escapeHtml(t.agent)} · ${escapeHtml(t.step)}</span>
+                                    <span class="agent-step-status ${badgeClass}">${escapeHtml(t.status.toUpperCase())}</span>
+                                    <span style="color:var(--text-dim);">${t.latency_ms}ms</span>
+                                </div>
+                                <div class="agent-step-thought">${escapeHtml(t.thought)}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const drawerId = 'agentic-' + Math.random().toString(36).substring(2, 8);
+                const val = data.validation || {};
+                const faithPct = Math.round((val.faithfulness_score != null ? val.faithfulness_score : 1.0) * 100);
+                const citePct = Math.round((val.citation_accuracy != null ? val.citation_accuracy : 1.0) * 100);
+                const correctedBadge = val.self_corrected ?
+                    '<span class="agent-pill warn">Self-Corrected</span>' :
+                    '<span class="agent-pill success">Verified Grounded</span>';
+
+                agenticHtml = `
+                    <div class="agent-orchestration-deck">
+                        <div class="agent-deck-header" onclick="toggleSources('${drawerId}')">
+                            <div class="agent-deck-title">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                </svg>
+                                <span>Agent Orchestration</span>
+                                <span class="agent-pill info">${data.intent ? escapeHtml(data.intent.toUpperCase()) : 'ORCHESTRATED'}</span>
+                                ${correctedBadge}
+                            </div>
+                            <div class="agent-deck-toggle">
+                                <span>Faithfulness: ${faithPct}% · Citations: ${citePct}%</span>
+                                <span style="opacity:0.6;">▼</span>
+                            </div>
+                        </div>
+                        <div class="agent-deck-body" id="${drawerId}">
+                            ${stepsHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Collapsible sources drawer
+            let sourcesHtml = '';
+            if (data.sources && data.sources.length) {
+                const sourceCards = data.sources.map((s, i) => `
+                    <div class="source-card">
+                        <div class="source-card-head">
+                            <span>#${i + 1} ${escapeHtml(s.document)} (Page ${s.page})</span>
+                            <span>Score: ${typeof s.score === 'number' ? s.score.toFixed(3) : s.score}</span>
+                        </div>
+                        ${s.text ? `<div style="font-size: 11px; line-height: 1.5; color: var(--text-mid);">${escapeHtml(s.text.slice(0, 240))}...</div>` : ''}
+                    </div>
+                `).join('');
+
+                const drawerId = 'sources-' + Math.random().toString(36).substring(2, 8);
+                sourcesHtml = `
+                    <div class="sources-accordion">
+                        <div class="sources-trigger" onclick="toggleSources('${drawerId}')">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                            <span>Inspect ${data.sources.length} Retrieved Passages</span>
+                        </div>
+                        <div class="sources-drawer" id="${drawerId}">
+                            ${sourceCards}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Telemetry pipeline execution stepper
+            let traceHtml = '';
+            if (data.timings && data.timings.total_ms > 0) {
+                const t = data.timings;
+                const tot = t.total_ms || 1;
+
+                const retPct = Math.max(2, (t.retrieval_ms / tot) * 100);
+                const rerankPct = Math.max(2, (t.reranking_ms / tot) * 100);
+                const genPct = Math.max(2, (t.generation_ms / tot) * 100);
+                const citePct = Math.max(2, (t.citation_ms / tot) * 100);
+
+                traceHtml = `
+                    <div class="pipeline-trace">
+                        <div class="trace-bar">
+                            <div class="trace-seg retrieval" style="width: ${retPct}%" title="Retrieval: ${t.retrieval_ms.toFixed(0)}ms"></div>
+                            <div class="trace-seg rerank" style="width: ${rerankPct}%" title="Reranking: ${t.reranking_ms.toFixed(0)}ms"></div>
+                            <div class="trace-seg gen" style="width: ${genPct}%" title="Generation: ${t.generation_ms.toFixed(0)}ms"></div>
+                            <div class="trace-seg cite" style="width: ${citePct}%" title="Citation Verification: ${t.citation_ms.toFixed(0)}ms"></div>
+                        </div>
+                        <div class="trace-legend">
+                            <span class="trace-node"><span class="trace-node-dot" style="background:var(--timing-retrieval)"></span> Retrieval: ${t.retrieval_ms.toFixed(0)}ms</span>
+                            <span class="trace-node"><span class="trace-node-dot" style="background:var(--timing-rerank)"></span> Rerank: ${t.reranking_ms.toFixed(0)}ms</span>
+                            <span class="trace-node"><span class="trace-node-dot" style="background:var(--timing-gen)"></span> LLM: ${t.generation_ms.toFixed(0)}ms</span>
+                            <span class="trace-node"><span class="trace-node-dot" style="background:var(--timing-cite)"></span> Total: ${t.total_ms.toFixed(0)}ms</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            entry.innerHTML = `
+                <div class="turn-header assistant">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Synthesized Intelligence
+                </div>
+                <div class="turn-bubble">
+                    ${formatAnswerText(data.answer)}
+                    ${provenanceHtml}
+                    ${agenticHtml}
+                    ${sourcesHtml}
+                    ${traceHtml}
+                </div>
+            `;
+
+            stream.appendChild(entry);
+            stream.scrollTop = stream.scrollHeight;
+        }
+
+        function toggleSources(id) {
+            const drawer = document.getElementById(id);
+            if (drawer) {
+                drawer.classList.toggle('open');
+            }
+        }
+
+        let loadingSeed = 0;
+        function appendLoadingIndicator() {
+            const stream = document.getElementById('dialogue-stream');
+            const id = `loader-${++loadingSeed}`;
+            const entry = document.createElement('div');
+            entry.id = id;
+            entry.className = 'turn-entry assistant';
+            entry.innerHTML = `
+                <div class="turn-header assistant">Synthesizing</div>
+                <div class="turn-bubble loading-step">
+                    <div class="pulse-loader">
+                        <span class="pulse-dot"></span>
+                        <span class="pulse-dot"></span>
+                        <span class="pulse-dot"></span>
+                    </div>
+                    Querying hybrid index & verifying citations...
+                </div>
+            `;
+            stream.appendChild(entry);
+            stream.scrollTop = stream.scrollHeight;
+            return id;
+        }
+
+        function removeLoadingIndicator(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function clearStream() {
+            const stream = document.getElementById('dialogue-stream');
+            stream.innerHTML = `
+                <div class="workspace-welcome" id="empty-state">
+                    <div class="welcome-badge">Workspace Cleared</div>
+                    <h2 class="welcome-heading">Ready for Inquiry</h2>
+                    <p class="welcome-sub">Enter a question below to analyze the active indexed documents.</p>
+                </div>
+            `;
+        }
+
+        // ═══ Metrics Telemetry Fetcher ═══
+        async function fetchMetrics() {
+            try {
+                const res = await fetch(`${API_BASE}/metrics`);
+                const stats = await res.json();
+
+                document.getElementById('val-queries').textContent = stats.total_queries;
+                document.getElementById('val-latency').textContent = stats.avg_latency_ms > 0 ? `${stats.avg_latency_ms.toFixed(0)}ms` : '—';
+                document.getElementById('val-p95').textContent = stats.p95_latency_ms > 0 ? `${stats.p95_latency_ms.toFixed(0)}ms` : '—';
+                document.getElementById('val-citation').textContent = stats.avg_citation_score > 0 ? `${(stats.avg_citation_score * 100).toFixed(0)}%` : '—';
+            } catch (err) {
+                // Graceful telemetry fallback
+            }
+        }
+
+        // ═══ Text Formatting & Escape Utilities ═══
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function formatAnswerText(text) {
+            if (!text) return '';
+            let out = escapeHtml(text);
+            
+            // Highlight citations like [Source: paper.pdf, Page 4]
+            out = out.replace(/\[Source:\s*([^,\]]+),\s*Page\s*(\d+)\]/gi, (match, doc, page) => {
+                return `<strong style="color: var(--accent-primary); font-family: var(--font-mono); font-size: 11px;">[Source: ${doc}, p.${page}]</strong>`;
+            });
+
+            // Parse backticks for inline code
+            out = out.replace(/`([^`]+)`/g, '<code style="font-family: var(--font-mono); background: var(--canvas-subtle); padding: 1px 4px; border-radius: 3px; font-size: 12px;">$1</code>');
+
+            // Line breaks
+            out = out.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+
+            return out;
+        }
+
+        // ═══ Evaluation Runner ═══
+        async function runEvaluation() {
+            const btn = document.getElementById('btn-run-eval');
+            const placeholder = document.getElementById('eval-placeholder');
+            const loading = document.getElementById('eval-loading');
+            const results = document.getElementById('eval-results');
+
+            btn.disabled = true;
+            placeholder.style.display = 'none';
+            results.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_BASE}/evaluate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+
+                loading.style.display = 'none';
+
+                if (data.status === 'error') {
+                    placeholder.style.display = 'block';
+                    placeholder.innerHTML = `<span style="color: var(--signal-danger);">⚠ ${escapeHtml(data.message)}</span>`;
+                    btn.disabled = false;
+                    return;
+                }
+
+                // Populate retrieval metrics
+                const r = data.retrieval || {};
+                document.getElementById('eval-recall5').textContent = r.recall_at_5 != null ? (r.recall_at_5 * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-mrr').textContent = r.mrr != null ? r.mrr.toFixed(4) : '—';
+                document.getElementById('eval-ndcg5').textContent = r.ndcg_at_5 != null ? (r.ndcg_at_5 * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-prec5').textContent = r.precision_at_5 != null ? (r.precision_at_5 * 100).toFixed(1) + '%' : '—';
+
+                // Populate generation metrics
+                const g = data.generation || {};
+                document.getElementById('eval-em').textContent = g.exact_match != null ? (g.exact_match * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-f1').textContent = g.fuzzy_f1 != null ? (g.fuzzy_f1 * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-contains').textContent = g.contains_match != null ? (g.contains_match * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-avglen').textContent = g.avg_answer_length != null ? g.avg_answer_length.toFixed(0) + ' tok' : '—';
+
+                // Summary
+                document.getElementById('eval-summary').textContent = data.message || `Completed in ${data.elapsed_seconds}s`;
+
+                results.style.display = 'block';
+            } catch (err) {
+                loading.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = `<span style="color: var(--signal-danger);">⚠ Connection error: ${escapeHtml(err.message)}</span>`;
+            }
+
+            btn.disabled = false;
+        }
+
+        // ═══ Multi-Agent Pipeline SLA Auditor ═══
+        async function runPipelineAudit() {
+            const btn = document.getElementById('btn-run-audit');
+            const placeholder = document.getElementById('eval-placeholder');
+            const loading = document.getElementById('eval-loading');
+            const results = document.getElementById('eval-results');
+
+            btn.disabled = true;
+            placeholder.style.display = 'none';
+            results.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_BASE}/orchestrate/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                loading.style.display = 'none';
+
+                if (data.overall_status === 'UNHEALTHY' && (!data.sla_checks || !data.sla_checks.length)) {
+                    placeholder.style.display = 'block';
+                    placeholder.innerHTML = `<span style="color: var(--signal-danger);">⚠ ${escapeHtml(data.message)}</span>`;
+                    btn.disabled = false;
+                    return;
+                }
+
+                // Populate metrics
+                const r = data.retrieval_metrics || {};
+                document.getElementById('eval-recall5').textContent = r.recall_at_5 != null ? (r.recall_at_5 * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-mrr').textContent = r.mrr != null ? r.mrr.toFixed(4) : '—';
+                document.getElementById('eval-ndcg5').textContent = r.ndcg_at_5 != null ? (r.ndcg_at_5 * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-prec5').textContent = r.precision_at_5 != null ? (r.precision_at_5 * 100).toFixed(1) + '%' : '—';
+
+                const g = data.generation_metrics || {};
+                document.getElementById('eval-em').textContent = g.exact_match != null ? (g.exact_match * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-f1').textContent = g.fuzzy_f1 != null ? (g.fuzzy_f1 * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-contains').textContent = g.contains_match != null ? (g.contains_match * 100).toFixed(1) + '%' : '—';
+                document.getElementById('eval-avglen').textContent = g.avg_answer_length != null ? g.avg_answer_length.toFixed(0) + ' tok' : '—';
+
+                const statusColor = data.overall_status === 'HEALTHY' ? 'var(--signal-success)' : data.overall_status === 'DEGRADED' ? '#fbbf24' : 'var(--signal-danger)';
+                let summaryHtml = `
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                        <span style="color:${statusColor}; font-weight:700;">● ${escapeHtml(data.overall_status)}</span>
+                        <span style="color:var(--text-dim);">· ${escapeHtml(data.message)}</span>
+                    </div>
+                `;
+                if (data.recommendations && data.recommendations.length) {
+                    summaryHtml += `<div style="font-size:10px; color:#fde68a; margin-top:4px;">💡 ${escapeHtml(data.recommendations[0])}</div>`;
+                }
+                document.getElementById('eval-summary').innerHTML = summaryHtml;
+                results.style.display = 'block';
+            } catch (err) {
+                loading.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = `<span style="color: var(--signal-danger);">⚠ Audit error: ${escapeHtml(err.message)}</span>`;
+            }
+
+            btn.disabled = false;
+        }
+
+        // ═══ Initialization ═══
+        inspectSystemHealth();
+        fetchMetrics();
+        setInterval(inspectSystemHealth, 25000);
+    </script>
+</body>
+</html>

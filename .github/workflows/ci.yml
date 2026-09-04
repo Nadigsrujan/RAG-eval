@@ -1,0 +1,61 @@
+name: CI — Lint, Test, Evaluate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Lint
+        run: .venv/bin/ruff check .
+
+      - name: Unit tests
+        run: .venv/bin/pytest tests/ -v --tb=short
+
+  # Smoke evaluation — runs on a small synthetic dataset
+  # Uncomment after setting up the full pipeline
+  #
+  # evaluate:
+  #   runs-on: ubuntu-latest
+  #   needs: lint-test
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.11"
+  #     - run: pip install -r requirements.txt
+  #     - name: Smoke evaluation
+  #       run: python -m evaluation.runner --config configs/default.yaml --dataset evaluation/datasets/eval_set.jsonl
+  #     - name: Check regression
+  #       run: |
+  #         python -c "
+  #         import json
+  #         with open('experiments/results/eval_report.json') as f:
+  #             report = json.load(f)
+  #         retrieval = report.get('retrieval', {})
+  #         recall = retrieval.get('recall@5', 0)
+  #         assert recall >= 0.5, f'Recall@5 regression: {recall} < 0.5'
+  #         print(f'Recall@5: {recall} — PASS')
+  #         "

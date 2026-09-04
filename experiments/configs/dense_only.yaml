@@ -1,0 +1,22 @@
+# Experiment: Dense only (no BM25, no reranking)
+# Use this to measure vector retrieval performance in isolation.
+
+ingestion:
+  chunk_size: 300
+  chunk_overlap: 50
+  pdf_parser: pdfplumber
+
+retrieval:
+  bm25_enabled: false
+  dense_enabled: true
+  top_k_initial: 20
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+
+reranker:
+  enabled: false
+
+generation:
+  model: Qwen/Qwen3-4B-Instruct-2507
+  max_new_tokens: 256
+  temperature: 0.1
+  prompt_version: v1

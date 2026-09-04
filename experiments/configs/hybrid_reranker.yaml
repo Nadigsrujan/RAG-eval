@@ -1,0 +1,25 @@
+# Experiment: Hybrid retrieval + cross-encoder reranking
+# This is the full pipeline — expected to outperform BM25-only and dense-only.
+
+ingestion:
+  chunk_size: 300
+  chunk_overlap: 50
+  pdf_parser: pdfplumber
+
+retrieval:
+  bm25_enabled: true
+  dense_enabled: true
+  top_k_initial: 20
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  fusion_method: rrf
+
+reranker:
+  enabled: true
+  model: cross-encoder/ms-marco-MiniLM-L-6-v2
+  top_k_final: 5
+
+generation:
+  model: Qwen/Qwen3-4B-Instruct-2507
+  max_new_tokens: 256
+  temperature: 0.1
+  prompt_version: v1

@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./indices:/app/indices
+      - ./traces:/app/traces
+      - ./logs:/app/logs
+    environment:
+      - CONFIG_PATH=configs/default.yaml
+    restart: unless-stopped
+
+  # Optional: MLflow tracking server
+  # Uncomment to enable experiment UI at http://localhost:5000
+  #
+  # mlflow:
+  #   image: ghcr.io/mlflow/mlflow:latest
+  #   ports:
+  #     - "5000:5000"
+  #   volumes:
+  #     - ./mlruns:/mlflow/mlruns
+  #   command: >
+  #     mlflow server
+  #     --host 0.0.0.0
+  #     --port 5000
+  #     --backend-store-uri sqlite:///mlflow/mlflow.db
+  #     --default-artifact-root /mlflow/mlruns
