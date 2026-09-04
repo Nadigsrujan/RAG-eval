@@ -496,7 +496,6 @@ docker compose up -d
 ```
 .
 ├── .env.example              # Template environment variables 
-├── SPEC-semantic-cache.md    # Specification for semantic cache implementation
 ├── Dockerfile                # Production container build
 ├── docker-compose.yml        # Docker compose configuration
 ├── requirements.txt          # Python dependencies
