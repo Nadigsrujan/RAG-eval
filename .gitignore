@@ -33,6 +33,8 @@ models/
 # ── Indices ──
 indices/
 
+agents/
+
 # ── Logs & Traces ──
 logs/
 traces/
