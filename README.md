@@ -184,7 +184,7 @@ pip install -r requirements.txt
 Copy the example environment file and add your Groq API key (if using Groq):
 
 ```bash
-cp .env.example .env
+cp .env.example 
 ```
 
 Edit `.env`:
